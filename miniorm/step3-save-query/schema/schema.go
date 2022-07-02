@@ -55,3 +55,12 @@ func Parse(dst interface{}, dialect dialect.Dialect) (schema *Schema) {
 	}
 	return
 }
+
+// Struct2Value converts struct instance to the column values like '&User{Name: "Tom", Age: 15}' -> ("Tom", 15)
+func (s *Schema) Struct2Value(src interface{}) (fields []interface{}) {
+	ins := reflect.Indirect(reflect.ValueOf(src))
+	for _, field := range s.Fields {
+		fields = append(fields, ins.FieldByName(field.Name).Interface())
+	}
+	return
+}

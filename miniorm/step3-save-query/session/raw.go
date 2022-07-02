@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"strings"
 
+	"miniorm/clause"
 	"miniorm/dialect"
 	"miniorm/ormlog"
 	"miniorm/schema"
@@ -13,6 +14,7 @@ type Session struct {
 	db       *sql.DB         // database conn instance
 	dialect  dialect.Dialect // the database type of this session connected
 	refTable *schema.Schema  // the table of this session operates
+	clause   clause.Clause   // build the complete sql statement
 	sql      strings.Builder // use strings.Builder to avoid memory allocation when build sql
 	sqlVars  []interface{}   // the vars in sql placeholder
 }
@@ -24,6 +26,7 @@ func New(db *sql.DB, dialect dialect.Dialect) *Session {
 func (s *Session) Clear() {
 	s.sql.Reset()
 	s.sqlVars = nil
+	s.clause = clause.Clause{}
 }
 
 func (s *Session) DB() *sql.DB {

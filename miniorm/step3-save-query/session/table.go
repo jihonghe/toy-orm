@@ -11,6 +11,7 @@ import (
 	"miniorm/schema"
 )
 
+// Model parses the given param 'v' to the dialect of Session
 func (s *Session) Model(v interface{}) (session *Session) {
 	if s.refTable == nil || reflect.TypeOf(v) != reflect.TypeOf(s.refTable.Model) {
 		s.refTable = schema.Parse(v, s.dialect)
