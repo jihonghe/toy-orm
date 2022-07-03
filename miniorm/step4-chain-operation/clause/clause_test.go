@@ -8,7 +8,7 @@ import (
 func TestSelect(t *testing.T) {
 	var clause Clause
 	clause.Set(SELECT, "User", []string{"*"})
-	clause.Set(WHERE, "Name = ?", "Tom")
+	clause.Set(WHERE, map[string]interface{}{"Name": "Tom"})
 	clause.Set(ORDERBY, "Name ASC")
 	clause.Set(LIMIT, 3)
 	sqlClause, vars := clause.Build(SELECT, WHERE, ORDERBY, LIMIT)

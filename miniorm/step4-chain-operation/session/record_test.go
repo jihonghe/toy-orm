@@ -2,6 +2,8 @@ package session
 
 import (
 	"testing"
+
+	"miniorm/ormlog"
 )
 
 var (
@@ -22,6 +24,55 @@ func testRecord(t *testing.T) (s *Session) {
 	}
 
 	return
+}
+
+func TestSession_First(t *testing.T) {
+	s := testRecord(t)
+	var u User
+	err := s.First(&u)
+	if err != nil {
+		t.Fatalf("failed to query data, err: %v", err)
+	}
+	ormlog.Info(u)
+}
+
+func TestSession_Count(t *testing.T) {
+	s := testRecord(t)
+	count, err := s.Where("Age > ?", 10).Count()
+	if err != nil {
+		t.Fatalf("failed to count records, err: %v", err)
+	}
+	ormlog.Info(count)
+}
+
+func TestSession_Where(t *testing.T) {
+	s := testRecord(t)
+	var users []User
+	err := s.Where("Age = ? or Name like ?", 13, `%T%`).Find(&users)
+	if err != nil {
+		t.Fatalf("failed to get users, err: %v", err)
+	}
+	ormlog.Info(users)
+}
+
+func TestSession_Update(t *testing.T) {
+	t.Log("Before update: ")
+	TestSession_Find(t)
+	s := testRecord(t)
+	// TODO: it will failed to update if UNIQUE in some field`s constraints without the WHERE clause
+	rowsAffected, err := s.Update("Age", 13)
+	if err != nil {
+		t.Fatalf("failed to update, err: %v", err)
+	}
+	t.Logf("rows affected: %d", rowsAffected)
+
+	t.Log("After update: ")
+	var users []User
+	err = s.Find(&users)
+	if err != nil {
+		t.Fatalf("failed to find user records, err: %v", err)
+	}
+	t.Log(users)
 }
 
 func TestSession_Insert(t *testing.T) {

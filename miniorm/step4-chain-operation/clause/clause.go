@@ -12,12 +12,15 @@ type Clause struct {
 type ClauseType int
 
 const (
-	INSERT ClauseType = iota
-	VALUES
-	SELECT
-	LIMIT
-	WHERE
-	ORDERBY
+	INSERT  ClauseType = iota // param1: tableName string; param2: columns ...interface{}
+	VALUES                    // param: values [][]interface{}, means a couple of values
+	SELECT                    // param1: tableName string; param2: columns ...interface{}
+	LIMIT                     // param1: offset uint64; param2: limit uint64
+	WHERE                     // param1: conditionDesc string; param2: values ...interface{}
+	ORDERBY                   // param: order-desc string like "Name ASC"
+	UPDATE                    // param: the fields and new values, supports map[string]interface{} and (field, value)
+	DELETE                    // param: tableName string
+	COUNT                     // param: tableName string
 )
 
 // Set gen sql clause based on the given clause type and vars, and then save it in Clause instance
