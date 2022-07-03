@@ -13,6 +13,7 @@ func (s *Session) Insert(values ...interface{}) (rowsAffected int64, err error) 
 	var recordValues []interface{}
 	var refTable *schema.Schema
 	for _, value := range values {
+		s.CallHook(BeforeInsert, value)
 		refTable, err = s.Model(value).RefTable()
 		if err != nil {
 			return
@@ -26,11 +27,14 @@ func (s *Session) Insert(values ...interface{}) (rowsAffected int64, err error) 
 	if err != nil {
 		return
 	}
+	s.CallHook(AfterInsert, nil)
 
 	return result.RowsAffected()
 }
 
 func (s *Session) First(value interface{}) (err error) {
+	s.CallHook(BeforeQuery, nil)
+
 	dst := reflect.Indirect(reflect.ValueOf(value))
 	dstSlc := reflect.New(reflect.SliceOf(dst.Type())).Elem()
 	if err = s.Limit(0, 1).Find(dstSlc.Addr().Interface()); err != nil {
@@ -40,11 +44,14 @@ func (s *Session) First(value interface{}) (err error) {
 		return sql.ErrNoRows
 	}
 	dst.Set(dstSlc.Index(0))
+	s.CallHook(AfterQuery, dst.Addr().Interface())
+
 	return
 }
 
 // Find will set the records queried from database to the instance of table struct
 func (s *Session) Find(values interface{}) (err error) {
+	s.CallHook(BeforeQuery, nil)
 	dstSlc := reflect.Indirect(reflect.ValueOf(values))
 	dstType := dstSlc.Type().Elem()
 	refTable, err := s.Model(reflect.New(dstType).Elem().Interface()).RefTable()
@@ -69,6 +76,7 @@ func (s *Session) Find(values interface{}) (err error) {
 		if err = rows.Scan(fields...); err != nil {
 			return
 		}
+		s.CallHook(AfterQuery, dst.Addr().Interface())
 		dstSlc.Set(reflect.Append(dstSlc, dst))
 	}
 
@@ -80,6 +88,7 @@ func (s *Session) Find(values interface{}) (err error) {
 //      1.map[string][]interface{}, key: condition-desc, value: values for condition-desc
 //      2.key-value pairs, it will be converted to map[string]interface{}, example: Update("Name", "Tom", "Age", 11)
 func (s *Session) Update(kv ...interface{}) (rowsAffected int64, err error) {
+	s.CallHook(BeforeUpdate, nil)
 	m, ok := kv[0].(map[string]interface{})
 	if !ok {
 		m = make(map[string]interface{})
@@ -94,11 +103,13 @@ func (s *Session) Update(kv ...interface{}) (rowsAffected int64, err error) {
 	if err != nil {
 		return
 	}
+	s.CallHook(AfterUpdate, nil)
 
 	return result.RowsAffected()
 }
 
 func (s *Session) Delete() (rowsAffected int64, err error) {
+	s.CallHook(BeforeDelete, nil)
 	s.clause.Set(clause.DELETE, s.RefTableName())
 	// NOTES: In order to build the correct sequence, add clause.WHERE in the end whether it exists or not
 	sqlClause, vars := s.clause.Build(clause.DELETE, clause.WHERE)
@@ -106,6 +117,7 @@ func (s *Session) Delete() (rowsAffected int64, err error) {
 	if err != nil {
 		return
 	}
+	s.CallHook(AfterDelete, nil)
 	return result.RowsAffected()
 }
 

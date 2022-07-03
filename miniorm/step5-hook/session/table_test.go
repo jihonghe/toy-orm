@@ -2,6 +2,8 @@ package session
 
 import (
 	"testing"
+
+	"miniorm/ormlog"
 )
 
 var (
@@ -13,9 +15,16 @@ func init() {
 }
 
 type User struct {
-	Id   int    `miniorm:"NOT NULL PRIMARY KEY AUTOINCREMENT"`
-	Name string `miniorm:"NOT NULL UNIQUE"`
-	Age  int    // no tag miniorm means no constraints
+	Id            int    `miniorm:"NOT NULL PRIMARY KEY AUTOINCREMENT"`
+	Name          string `miniorm:"NOT NULL UNIQUE"`
+	Age           int    // no tag miniorm means no constraints
+	PrivateSecret string
+}
+
+func (u *User) AfterQuery(s *Session) (err error) {
+	ormlog.Debugf("[hook-call] User.AfterQuery, user: %v", u)
+	u.PrivateSecret = "---------------------"
+	return
 }
 
 func Test_CreateTable(t *testing.T) {

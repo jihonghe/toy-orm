@@ -7,9 +7,9 @@ import (
 )
 
 var (
-	u1 = &User{1, "Tom", 10}
-	u2 = &User{2, "Sam", 11}
-	u3 = &User{3, "Jerry", 12}
+	u1 = &User{1, "Tom", 10, "Tom`s private secret"}
+	u2 = &User{2, "Sam", 11, "Sam`s private secret"}
+	u3 = &User{3, "Jerry", 12, "Jerry`s private secret"}
 )
 
 func testRecord(t *testing.T) (s *Session) {
