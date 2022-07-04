@@ -3,6 +3,7 @@ package miniorm
 import (
 	"database/sql"
 	"fmt"
+	"strings"
 
 	"miniorm/dialect"
 	"miniorm/ormlog"
@@ -75,4 +76,70 @@ func (e *Engine) Transaction(f TxFunc) (result interface{}, err error) {
 	}()
 
 	return f(s)
+}
+
+// Migrate only supports the column`s add and delete
+func (e *Engine) Migrate(value interface{}) (err error) {
+	_, err = e.Transaction(func(s *session.Session) (result interface{}, err error) {
+		// if table not exist, then try to create it
+		exists, err := s.Model(value).TableExists()
+		if err != nil {
+			return
+		}
+		if !exists {
+			return nil, s.CreateTable()
+		}
+
+		// if table exist, then try to migrate it
+		table, err := s.RefTable()
+		if err != nil {
+			return
+		}
+		rows, err := s.Raw(fmt.Sprintf("SELECT * FROM %s LIMIT 1", table.Name)).QueryRows()
+		if err != nil {
+			return
+		}
+		oldFields, err := rows.Columns()
+		if err != nil {
+			return
+		}
+		// get new columns and columns to be deleted
+		newFields := difference(table.FieldNames, oldFields)
+		deletedFields := difference(oldFields, table.FieldNames)
+		ormlog.Infof("table '%s' migrate: new cols %v, deleted cols %v", table.Name, newFields, deletedFields)
+		// add the new fields
+		for _, field := range newFields {
+			f := table.GetField(field)
+			alterSql := fmt.Sprintf("ALTER TABLE %s ADD COLUMN %s %s %s", table.Name, f.Name, f.Type, f.Constraints)
+			if _, err = s.Raw(alterSql).Exec(); err != nil {
+				return
+			}
+		}
+		if len(deletedFields) == 0 {
+			return
+		}
+		// migrate by sql
+		tmpTable := "tmp_" + table.Name
+		fieldStr := strings.Join(table.FieldNames, ", ")
+		s.Raw(fmt.Sprintf("CREATE TABLE %s AS SELECT %s FROM %s;", tmpTable, fieldStr, table.Name))
+		s.Raw(fmt.Sprintf("DROP TABLE %s", table.Name))
+		s.Raw(fmt.Sprintf("ALTER TABLE %s RENAME TO %s", tmpTable, table.Name))
+		_, err = s.Exec()
+		return
+	})
+	return
+}
+
+// difference returns element in array a and not in array b.In short, it returns (a - b)
+func difference(a, b []string) (diff []string) {
+	mapB := make(map[string]struct{})
+	for _, e := range b {
+		mapB[e] = struct{}{}
+	}
+	for _, e := range a {
+		if _, ok := mapB[e]; !ok {
+			diff = append(diff, e)
+		}
+	}
+	return
 }

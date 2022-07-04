@@ -33,9 +33,29 @@ func TestEngine_Transaction(t *testing.T) {
 	})
 }
 
+func TestEngine_Migrate(t *testing.T) {
+	// t.Run("commit", func(t *testing.T) {
+	// 	transactionCommit(t)
+	// })
+	t.Run("migrate", func(t *testing.T) {
+		transactionMigrate(t)
+	})
+}
+
 type User struct {
-	Name string `miniorm:"PRIMARY KEY"`
-	Age  int    `miniorm:"NOT NULL DEFAULT 0"`
+	Name     string `miniorm:"PRIMARY KEY"`
+	Age      int    `miniorm:"NOT NULL DEFAULT 0"`
+	HomeAddr string
+	Grade    int `miniorm:"NOT NULL DEFAULT 0"`
+}
+
+func transactionMigrate(t *testing.T) {
+	engine := openDB(t)
+	defer engine.Close()
+	err := engine.Migrate(&User{})
+	if err != nil {
+		t.Fatal(err)
+	}
 }
 
 func transactionCommit(t *testing.T) {
