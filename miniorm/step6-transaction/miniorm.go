@@ -42,3 +42,37 @@ func (e *Engine) Close() (err error) {
 func (e *Engine) NewSession() (s *session.Session) {
 	return session.New(e.db, e.dialect)
 }
+
+type TxFunc func(*session.Session) (interface{}, error)
+
+/*
+Transaction is a convenient method to do a transaction.
+	Param f TxFunc, it is a callback function and includes all DB operation that makes up a transaction.
+	An example of TxFunc:
+	func RecreateAndInsert(s *session.Session) (result interface{}, err error) {
+		s.Model(&User{}).DropTable()
+		s.Model(&User{}).CreateTable()
+		_, err = s.Insert(&User{Id: 1, Name: "Tom", Age: 18})
+		return
+	}
+
+	And then, we can use RecreateAndInsert as the callback func of Transaction
+*/
+func (e *Engine) Transaction(f TxFunc) (result interface{}, err error) {
+	s := e.NewSession()
+	if err = s.Begin(); err != nil {
+		return
+	}
+	defer func() {
+		if p := recover(); p != nil {
+			_ = s.Rollback()
+			panic(p) // re-throw the panic after rollback
+		} else if err != nil {
+			_ = s.Rollback() // err is not nil, just rollback
+		} else {
+			err = s.Commit() // err is nil, commit and update err
+		}
+	}()
+
+	return f(s)
+}

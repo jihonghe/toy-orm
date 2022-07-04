@@ -10,8 +10,23 @@ import (
 	"miniorm/schema"
 )
 
+var (
+	_ CommonDB = (*sql.DB)(nil)
+	_ CommonDB = (*sql.Tx)(nil)
+)
+
+// CommonDB is the minimal intersected function set of sql.DB and sql.Tx
+//  Use CommonDB as the abstraction sql.DB and sql.Tx
+//  Why Query, QueryRow and Exec? Because they are called by others DB operation func like Update, Insert and so on
+type CommonDB interface {
+	Query(query string, args ...interface{}) (*sql.Rows, error)
+	QueryRow(query string, args ...interface{}) *sql.Row
+	Exec(query string, args ...interface{}) (sql.Result, error)
+}
+
 type Session struct {
 	db       *sql.DB         // database conn instance
+	tx       *sql.Tx         // for transaction, it means open transaction when it is not nil
 	dialect  dialect.Dialect // the database type of this session connected
 	refTable *schema.Schema  // the table of this session operates
 	clause   clause.Clause   // build the complete sql statement
@@ -29,7 +44,11 @@ func (s *Session) Clear() {
 	s.clause = clause.Clause{}
 }
 
-func (s *Session) DB() *sql.DB {
+// DB returns *sql.Tx if a tx begins, otherwise returns *sql.DB
+func (s *Session) DB() CommonDB {
+	if s.tx != nil {
+		return s.tx
+	}
 	return s.db
 }
 
