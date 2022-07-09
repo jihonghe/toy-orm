@@ -1,14 +1,13 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"log"
 	"net"
+	"sync"
 	"time"
 
 	"minirpc"
-	"minirpc/codec"
 )
 
 func startServer(addr chan string) {
@@ -24,24 +23,41 @@ func startServer(addr chan string) {
 	minirpc.Accept(l)
 }
 
+func connAndSend(reqNum int, network, serverAddr string) {
+	client, err := minirpc.Dial(network, serverAddr, nil)
+	if err != nil {
+		panic(err)
+	}
+	time.Sleep(time.Second)
+	var wg sync.WaitGroup
+	for i := 0; i < reqNum; i++ {
+		wg.Add(1)
+		go func(seq int) {
+			defer wg.Done()
+			args := fmt.Sprintf("minirpc req %d", seq)
+			var reply string
+			if err = client.Call("Foo.Sum", args, &reply); err != nil {
+				log.Fatalf("call Foo.Sum failed: %s", err.Error())
+			}
+			log.Println("recv reply: ", reply)
+		}(i)
+	}
+	wg.Wait()
+}
+
 func main() {
-	log.SetFlags(3)
+	log.SetFlags(4)
 	addr := make(chan string)
 	go startServer(addr)
+	serverAddr := <-addr
 
-	conn, _ := net.Dial("tcp", <-addr)
-	defer func() { _ = conn.Close() }()
-
-	time.Sleep(time.Second)
-	_ = json.NewEncoder(conn).Encode(minirpc.DefaultOption)
-	time.Sleep(time.Second * 3)
-	cc := codec.NewGobCodec(conn)
+	var wg sync.WaitGroup
 	for i := 0; i < 5; i++ {
-		h := &codec.Header{ServiceMethod: "Foo.Sum", Seq: uint64(i)}
-		_ = cc.Write(h, fmt.Sprintf("minirpc req %d", h.Seq))
-		_ = cc.ReadHeader(h)
-		var reply string
-		_ = cc.ReadBody(&reply)
-		log.Println("reply: ", reply)
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			connAndSend(5, "tcp", serverAddr)
+		}()
 	}
+	wg.Wait()
 }
