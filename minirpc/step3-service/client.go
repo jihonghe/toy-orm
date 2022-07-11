@@ -133,6 +133,7 @@ func (c *Client) send(call *Call) {
 
 	c.header.ServiceMethod = call.ServiceMethod
 	c.header.Seq = seq
+	c.header.Error = ""
 	err = c.cc.Write(&c.header, call.Args)
 	if err != nil {
 		removeCall := c.removeCall(call.Seq)
@@ -178,7 +179,6 @@ func (c *Client) registerCall(call *Call) (callSeq uint64, err error) {
 
 	call.Seq = c.seq
 	callSeq = call.Seq
-	call.ServiceMethod = c.header.ServiceMethod
 	if c.pending == nil {
 		c.pending = make(map[uint64]*Call)
 	}

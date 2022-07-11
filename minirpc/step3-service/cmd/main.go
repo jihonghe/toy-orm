@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"log"
 	"net"
 	"sync"
@@ -10,10 +9,26 @@ import (
 	"minirpc"
 )
 
+type Foo int
+
+type Args struct {
+	Num1, Num2 int
+}
+
+func (f Foo) Sum(args Args, reply *int) (err error) {
+	*reply = args.Num1 + args.Num2
+	return
+}
+
 func startServer(addr chan string) {
 	defer func() {
 		log.Println("rpc server closed")
 	}()
+	var foo Foo
+	err := minirpc.Register(&foo)
+	if err != nil {
+		log.Fatalf("register error: %s", err.Error())
+	}
 	l, err := net.Listen("tcp", ":0")
 	if err != nil {
 		log.Fatalln("listen err: ", err)
@@ -34,12 +49,12 @@ func connAndSend(reqNum int, network, serverAddr string) {
 		wg.Add(1)
 		go func(seq int) {
 			defer wg.Done()
-			args := fmt.Sprintf("minirpc req %d", seq)
-			var reply string
+			args := &Args{Num1: seq, Num2: seq + 1}
+			var reply int
 			if err = client.Call("Foo.Sum", args, &reply); err != nil {
 				log.Fatalf("call Foo.Sum failed: %s", err.Error())
 			}
-			log.Println("recv reply: ", reply)
+			log.Printf("rpc client(%v): %d + %d = %d", &client, args.Num1, args.Num2, reply)
 		}(i)
 	}
 	wg.Wait()
@@ -52,7 +67,7 @@ func main() {
 	serverAddr := <-addr
 
 	var wg sync.WaitGroup
-	for i := 0; i < 5; i++ {
+	for i := 0; i < 1; i++ {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
